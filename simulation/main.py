@@ -11,7 +11,7 @@ p.connect(p.GUI)
 p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
 p.setGravity(0, 0, -9.81)
 
-mobot = init_scene(p, mug_random=False)
+mobot, _ = init_scene(p, mug_random=False)
     
 forward=0
 turn=0

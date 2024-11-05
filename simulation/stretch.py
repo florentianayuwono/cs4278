@@ -343,8 +343,10 @@ def init_scene(p, mug_random=False):
 
     for _ in range(30):
         p.stepSimulation()
+    
+    obstacles = [cabinet2_id, table_id, wall_id, wall_id_back, wall_id_front, wall_left_id, wall_right_id, wall_right_id2, fridge_id, drawer_id, bed_id, microwave_id, box_id, bottle_id, bowl_id, mug_id, trashbin_id, pan_id, spatula_id]
 
-    return mobot
+    return mobot, obstacles
 
 
 def get_global_action_from_local(robot, delta_forward):
