@@ -12,6 +12,7 @@ p.setGravity(0, 0, -9.81)
 
 # Initialize the scene with the mobot and set up the mug in a fixed position
 mobot, obstacles = init_scene(p, mug_random=False)
+print(obstacles)
 drawer_position = [1.6, -0.35, 0]  # Target region for navigation
 
 # Parameters for controlling the robot
@@ -107,9 +108,20 @@ def place_in_drawer(mobot, drawer_position):
 # Main execution
 if __name__ == "__main__":
     # Step 1: Navigate the robot along the path to the drawer position
-    path = find_path((-1,0), (3,0), obstacles)
+    # Define grid resolution and bounds
+    grid_resolution = 0.3
+    x_min, x_max = -5, 5
+    y_min, y_max = -5, 5
+    path = find_path((-1,0), (1.81,-4), obstacles, 0.3, x_min, x_max, y_min, y_max)
+
     print("Path found:", path)
+
+    path2 = find_path((1.81,-4), (3, 0), obstacles, 0.05, x_min, x_max, y_min, y_max)
+
+    print("Path found:", path2)
+
     navi_flag = navigate_to_goal(mobot, path)
+    navi_flag = navigate_to_goal(mobot, path2)
 
     # Step 2: Pick up the mug if it is in place
     if navi_flag and not grasp_flag:

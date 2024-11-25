@@ -135,7 +135,7 @@ while (1):
     
     if grasp_flag == False:
         mug_position = get_mug_pose(p)
-        print("Mug position: ", mug_position)
+        # print("Mug position: ", mug_position)
 
         if mug_position[0] > 3.3 and mug_position[0] < 3.5 \
             and mug_position[1] > -0.17 and mug_position[1] < 0.25 \
@@ -146,4 +146,4 @@ while (1):
         print("Mug is in the drawer!")
 
     ee_position, _, _ = get_robot_ee_pose(p, mobot.robotId)
-    print("End-effector position: ", ee_position)
+    # print("End-effector position: ", ee_position)

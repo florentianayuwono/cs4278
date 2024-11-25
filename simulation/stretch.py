@@ -13,6 +13,8 @@ sys.path.append('./')
 def init_scene(p, mug_random=False):
     root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),"../")
 
+    collision_mapping = {}
+
     ################ Plane Environment
     plane_id = p.loadURDF(os.path.join(root_dir,"resource/urdf/plane.urdf"), [0, 0, 0])
     plane_texture_id = p.loadTexture(os.path.join(root_dir,"resource/texture/texture1.jpg"))
@@ -40,6 +42,7 @@ def init_scene(p, mug_random=False):
                                           basePosition=(table_depth / 2.0 + 0.1, 0.05, table_height / 2.0))
     table_color = [128 / 255.0, 128 / 255.0, 128 / 255.0, 1.0]
     p.changeVisualShape(table_id, -1, rgbaColor=table_color)
+    collision_mapping["table"] = p.getAABB(table_id)
 
     ################
     wall_height = 2.2
@@ -68,6 +71,10 @@ def init_scene(p, mug_random=False):
                                              baseCollisionShapeIndex=wall_c,\
                                              baseVisualShapeIndex=wall_v,\
                                              basePosition=(wall_center_x+3.0, -1.9, wall_height/2.0))
+
+    collision_mapping["wall"] = p.getAABB(wall_id)
+    collision_mapping["wall back"] = p.getAABB(wall_id_back)
+    collision_mapping["wall front"] = p.getAABB(wall_id_front)
 
     wall_width_left = 2.0
     wall_width_right = 6.0
@@ -105,45 +112,138 @@ def init_scene(p, mug_random=False):
     p.changeVisualShape(wall_right_id,-1,rgbaColor=wall_color)
     p.changeVisualShape(wall_id,-1,rgbaColor=wall_color)
 
+    collision_mapping["wall left"] = p.getAABB(wall_left_id)
+    collision_mapping["wall right"] = p.getAABB(wall_right_id)
+    collision_mapping["wall right 2"] = p.getAABB(wall_right_id2)
+
     urdf_dir = os.path.join(root_dir,"resource/urdf")
 
     table_z = p.getAABB(table_id)[1][2]
 
-    cabinet2_position = [-1.5, 0.25, table_z+ 1.5]
-    cabinet2_scaling = 0.7
-    cabinet2_orientation = p.getQuaternionFromEuler([0, 0, np.pi])
-    cabinet2_id = p.loadURDF(fileName=os.path.join(urdf_dir,"obj_libs/cabinets/c2/mobility.urdf"),\
-                                    useFixedBase=True,
-                                    basePosition=cabinet2_position,\
-                                    baseOrientation=cabinet2_orientation,\
-                                    globalScaling=cabinet2_scaling)
+    # cabinet2_position = [-1.5, 0.25, table_z+ 1.5]
+    # cabinet2_scaling = 0.7
+    # cabinet2_orientation = p.getQuaternionFromEuler([0, 0, np.pi])
+    # cabinet2_id = p.loadURDF(fileName=os.path.join(urdf_dir,"obj_libs/cabinets/c2/mobility.urdf"),\
+    #                                 useFixedBase=True,
+    #                                 basePosition=cabinet2_position,\
+    #                                 baseOrientation=cabinet2_orientation,\
+    #                                 globalScaling=cabinet2_scaling)
 
-    p.changeVisualShape(cabinet2_id,2,rgbaColor=[0.5,0.5,0.5,1])
-    p.changeVisualShape(cabinet2_id,1,rgbaColor=[1,1,1,1])
-    p.changeVisualShape(cabinet2_id,3,rgbaColor=[1,1,1,1])
-    p.changeVisualShape(cabinet2_id,4,rgbaColor=[0.5,0.5,0.5,1])
+    # p.changeVisualShape(cabinet2_id,2,rgbaColor=[0.5,0.5,0.5,1])
+    # p.changeVisualShape(cabinet2_id,1,rgbaColor=[1,1,1,1])
+    # p.changeVisualShape(cabinet2_id,3,rgbaColor=[1,1,1,1])
+    # p.changeVisualShape(cabinet2_id,4,rgbaColor=[0.5,0.5,0.5,1])
 
 
-    cabinet_center_x = 1.35 #+ (p.getAABB(table_id)[1][0] - p.getAABB(cabinet1_id)[1][0])/2.0
-    cabinet_center_y = -1.25#cabinet_width/2.0
-    cabinet_center_z = 1.4
+    # cabinet_center_x = 1.35 #+ (p.getAABB(table_id)[1][0] - p.getAABB(cabinet1_id)[1][0])/2.0
+    # cabinet_center_y = -1.25#cabinet_width/2.0
+    # cabinet_center_z = 1.4
 
-    #cabinet1_position = (cabinet_center_x, -cabinet_center_y, cabinet_center_z)
-    cabinet2_position = (cabinet_center_x,  cabinet_center_y, cabinet_center_z)
-    #p.resetBasePositionAndOrientation(cabinet1_id, cabinet1_position, cabinet1_orientation)
-    p.resetBasePositionAndOrientation(cabinet2_id, cabinet2_position, cabinet2_orientation)
+    # #cabinet1_position = (cabinet_center_x, -cabinet_center_y, cabinet_center_z)
+    # cabinet2_position = (cabinet_center_x,  cabinet_center_y, cabinet_center_z)
+    # #p.resetBasePositionAndOrientation(cabinet1_id, cabinet1_position, cabinet1_orientation)
+    # p.resetBasePositionAndOrientation(cabinet2_id, cabinet2_position, cabinet2_orientation)
 
+    # Cabinet dimensions (original size based on URDF)
+    cabinet_height = 1  # Original height (scaled)
+    cabinet_width = 1.5   # Original width (scaled)
+    cabinet_depth = 0.5   # Original depth (scaled)
+
+    # Scaling factor from URDF
+    cabinet_scaling = 0.7  # Apply the same scaling factor as in the URDF
+
+    # Apply scaling to dimensions
+    scaled_height = cabinet_height * cabinet_scaling
+    scaled_width = cabinet_width * cabinet_scaling
+    scaled_depth = cabinet_depth * cabinet_scaling
+
+    # Position of the cabinet (same as in the URDF initialization)
+    table_z = p.getAABB(table_id)[1][2]  # Get the height of the table
+    table_x = p.getAABB(table_id)[1][0]
+    cabinet_position = [table_x + 0.2, -1.5, table_z + 0.5]
+
+    # Cabinet orientation (same as in the URDF initialization)
+    cabinet_orientation = p.getQuaternionFromEuler([0, 0, np.pi])  # Rotated 180 degrees around Z axis
+
+    # Create the visual and collision shapes
+    cabinet_v = p.createVisualShape(
+        p.GEOM_BOX, 
+        halfExtents=[scaled_depth / 2.0, scaled_width / 2.0, scaled_height / 2.0]
+    )
+    cabinet_c = p.createCollisionShape(
+        p.GEOM_BOX, 
+        halfExtents=[scaled_depth / 2.0, scaled_width / 2.0, scaled_height / 2.0]
+    )
+
+    # Create the multi-body object
+    cabinet2_id = p.createMultiBody(
+        baseMass=0,  # Static object, no mass
+        baseCollisionShapeIndex=cabinet_c,
+        baseVisualShapeIndex=cabinet_v,
+        basePosition=cabinet_position,
+        baseOrientation=cabinet_orientation
+    )
+
+    # Set the visual color (similar to the URDF)
+    cabinet_color = [0.5, 0.5, 0.5, 1.0]  # Gray color
+    p.changeVisualShape(cabinet2_id, -1, rgbaColor=cabinet_color)
+
+    collision_mapping["cabinet2"] = p.getAABB(cabinet2_id)
+    
     ############################
     #### fridge initialization
-    fridge_position = [0.7, -3.22, 0.9]
-    fridge_scaling = 1.0
-    fridge_orientation = p.getQuaternionFromEuler([0, 0, 0])
-    fridge_id = p.loadURDF(fileName=os.path.join(urdf_dir, "obj_libs/fridges/f1/mobility.urdf"), \
-                                    useFixedBase=True, \
-                                    basePosition=fridge_position, \
-                                    baseOrientation=fridge_orientation, \
-                                    globalScaling=fridge_scaling)
+    # fridge_position = [0.7, -3.22, 0.9]
+    # fridge_scaling = 1.0
+    # fridge_orientation = p.getQuaternionFromEuler([0, 0, 0])
+    # fridge_id = p.loadURDF(fileName=os.path.join(urdf_dir, "obj_libs/fridges/f1/mobility.urdf"), \
+    #                                 useFixedBase=True, \
+    #                                 basePosition=fridge_position, \
+    #                                 baseOrientation=fridge_orientation, \
+    #                                 globalScaling=fridge_scaling)
 
+    # Fridge dimensions (original size based on URDF)
+    fridge_height = 1.8  # Original height (scaled)
+    fridge_width = 1   # Original width (scaled)
+    fridge_depth = 0.8  # Original depth (scaled)
+
+    # Scaling factor from URDF
+    fridge_scaling = 1.0  # Apply the same scaling factor as in the URDF
+
+    # Apply scaling to dimensions
+    scaled_height = fridge_height * fridge_scaling
+    scaled_width = fridge_width * fridge_scaling
+    scaled_depth = fridge_depth * fridge_scaling
+
+    # Position of the fridge (same as in the URDF initialization)
+    fridge_position = [0.7, -3.1, 0.9]
+
+    # Fridge orientation (same as in the URDF initialization, no rotation)
+    fridge_orientation = p.getQuaternionFromEuler([0, 0, 0])  # No rotation
+
+    # Create the visual and collision shapes
+    fridge_v = p.createVisualShape(
+        p.GEOM_BOX, 
+        halfExtents=[scaled_depth / 2.0, scaled_width / 2.0, scaled_height / 2.0]
+    )
+    fridge_c = p.createCollisionShape(
+        p.GEOM_BOX, 
+        halfExtents=[scaled_depth / 2.0, scaled_width / 2.0, scaled_height / 2.0]
+    )
+
+    # Create the multi-body object
+    fridge_id = p.createMultiBody(
+        baseMass=0,  # Static object, no mass
+        baseCollisionShapeIndex=fridge_c,
+        baseVisualShapeIndex=fridge_v,
+        basePosition=fridge_position,
+        baseOrientation=fridge_orientation
+    )
+
+    # Set the fridge color (similar to the URDF)
+    fridge_color = [1, 1, 1, 1.0]  # Light gray color
+    p.changeVisualShape(fridge_id, -1, rgbaColor=fridge_color)
+
+    collision_mapping["fridge"] = p.getAABB(fridge_id)
 
     #######
     table_z = p.getAABB(table_id)[1][2]
@@ -155,9 +255,9 @@ def init_scene(p, mug_random=False):
                                     baseOrientation=drawer_orientation, \
                                     globalScaling=drawer_scaling, \
                                     useFixedBase=True)
+    collision_mapping["drawer"] = p.getAABB(drawer_id)
 
-    #### bed
-    #### table initialization
+    #### bed initialization
     bed_height = 0.7#0.12 * 2.0
     bed_width = 1.8
     bed_depth = 2.2
@@ -170,7 +270,8 @@ def init_scene(p, mug_random=False):
                                           basePosition=(bed_depth / 2.0 + 1.9, -1.45, bed_height / 2.0))
     bed_color = [128 / 255.0, 128 / 255.0, 128 / 255.0, 1.0]
     p.changeVisualShape(bed_id, -1, rgbaColor=bed_color)
-
+    collision_mapping["bed"] = p.getAABB(bed_id)
+    
     #### microwave initialization
     table_z = p.getAABB(table_id)[1][2]
     microwave_position = [0.35, 0.72, table_z + 0.15]
@@ -188,6 +289,8 @@ def init_scene(p, mug_random=False):
     p.changeVisualShape(microwave_id, 2, rgbaColor=[0.5, 0.5, 0.5, 1])
     p.changeVisualShape(microwave_id, 3, rgbaColor=[0.2, 0.2, 0.2, 1])
     p.resetJointState(microwave_id, 1, np.pi/2.0, 0.0)
+
+    collision_mapping["microwave"] = p.getAABB(microwave_id)
     #####
 
     box_position = [2.25, -3.5 , 0.2]
@@ -210,6 +313,8 @@ def init_scene(p, mug_random=False):
     for ji in range(numJoint):
         p.setJointMotorControl2(box_id, ji, p.VELOCITY_CONTROL, force=0.5)
 
+    collision_mapping["box"] = p.getAABB(box_id)
+
     ############################
     bottle_position = [drawer_position[0]+0.1, drawer_position[1]+0.1, table_z+0.49]
     bottle_scaling = 0.2
@@ -230,7 +335,7 @@ def init_scene(p, mug_random=False):
     #p.changeDynamics(bottle_id, -1, linearDamping=20.0)
     #p.changeDynamics(bottle_id, -1, angularDamping=20.0)
     #p.changeDynamics(bottle_id, -1, contactStiffness=0.1, contactDamping=0.1)
-
+    collision_mapping["bottle"] = p.getAABB(bottle_id)
 
     bowl_position = [0.4, -0.6, table_z + 0.15]
     bowl_scaling = 0.2
@@ -246,7 +351,8 @@ def init_scene(p, mug_random=False):
     bowl_position[2] = table_z + bowl_height / 2.0
     p.resetBasePositionAndOrientation(bowl_id, bowl_position, bowl_orientation)
     obj_friction_ceof = 2000.0
-
+    collision_mapping["bowl"] = p.getAABB(bowl_id)
+    
     p.changeDynamics(bowl_id, -1, lateralFriction=obj_friction_ceof)
     p.changeDynamics(bowl_id, -1, rollingFriction=obj_friction_ceof)
     p.changeDynamics(bowl_id, -1, spinningFriction=obj_friction_ceof)
@@ -281,6 +387,18 @@ def init_scene(p, mug_random=False):
                                     globalScaling=trashbin_scaling)
     p.changeVisualShape(trashbin_id, -1, rgbaColor=[200 / 255., 179 / 255., 179 / 255., 1])
 
+    collision_mapping["trashbin"] = p.getAABB(trashbin_id)
+
+    # Draw collision mapping
+    for obj_name, (aabb_min, aabb_max) in collision_mapping.items():
+        rounded_min = [math.floor(coord * 100) / 100 for coord in aabb_min]  # Round down
+        rounded_max = [math.ceil(coord * 100) / 100 for coord in aabb_max]    # Round up
+        collision_mapping[obj_name] = (tuple(rounded_min), tuple(rounded_max))
+    
+    print(collision_mapping)
+    for item in collision_mapping.values():
+        draw_aabb(item[0], item[1])
+    
     pan_position = [0.35, .2, table_z + 0.05]
     pan_scaling = 0.6
     pan_orientation = p.getQuaternionFromEuler([.0, 0.0, np.pi / 4.0])
@@ -346,8 +464,40 @@ def init_scene(p, mug_random=False):
     
     obstacles = [cabinet2_id, table_id, wall_id, wall_id_back, wall_id_front, wall_left_id, wall_right_id, wall_right_id2, fridge_id, drawer_id, bed_id, microwave_id, box_id, bottle_id, bowl_id, mug_id, trashbin_id, pan_id, spatula_id]
 
-    return mobot, obstacles
+    return mobot, collision_mapping
 
+def draw_aabb(aabb_min, aabb_max, color=[1, 0, 0], line_width=2):
+    """
+    Draws the AABB (Axis-Aligned Bounding Box) in PyBullet.
+    
+    Parameters:
+    - aabb_min: Minimum corner of the AABB as a tuple (x_min, y_min, z_min).
+    - aabb_max: Maximum corner of the AABB as a tuple (x_max, y_max, z_max).
+    - color: Line color for the box, default is red ([1, 0, 0]).
+    - line_width: Line width for the debug lines, default is 2.
+    """
+    # Define the 8 corners of the AABB
+    corners = [
+        [aabb_min[0], aabb_min[1], aabb_min[2]],  # Bottom-back-left
+        [aabb_max[0], aabb_min[1], aabb_min[2]],  # Bottom-back-right
+        [aabb_max[0], aabb_max[1], aabb_min[2]],  # Bottom-front-right
+        [aabb_min[0], aabb_max[1], aabb_min[2]],  # Bottom-front-left
+        [aabb_min[0], aabb_min[1], aabb_max[2]],  # Top-back-left
+        [aabb_max[0], aabb_min[1], aabb_max[2]],  # Top-back-right
+        [aabb_max[0], aabb_max[1], aabb_max[2]],  # Top-front-right
+        [aabb_min[0], aabb_max[1], aabb_max[2]]   # Top-front-left
+    ]
+    
+    # Define the edges of the box as pairs of corner indices
+    edges = [
+        (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face
+        (4, 5), (5, 6), (6, 7), (7, 4),  # Top face
+        (0, 4), (1, 5), (2, 6), (3, 7)   # Vertical edges
+    ]
+    
+    # Draw each edge as a line
+    for start, end in edges:
+        p.addUserDebugLine(corners[start], corners[end], lineColorRGB=color, lineWidth=line_width)
 
 def get_global_action_from_local(robot, delta_forward):
     # Get the current joint angle of joint 2 (rotation around z-axis)
