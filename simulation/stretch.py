@@ -255,7 +255,6 @@ def init_scene(p, mug_random=False):
                                     baseOrientation=drawer_orientation, \
                                     globalScaling=drawer_scaling, \
                                     useFixedBase=True)
-    collision_mapping["drawer"] = p.getAABB(drawer_id)
 
     #### bed initialization
     bed_height = 0.7#0.12 * 2.0
@@ -335,7 +334,6 @@ def init_scene(p, mug_random=False):
     #p.changeDynamics(bottle_id, -1, linearDamping=20.0)
     #p.changeDynamics(bottle_id, -1, angularDamping=20.0)
     #p.changeDynamics(bottle_id, -1, contactStiffness=0.1, contactDamping=0.1)
-    collision_mapping["bottle"] = p.getAABB(bottle_id)
 
     bowl_position = [0.4, -0.6, table_z + 0.15]
     bowl_scaling = 0.2
@@ -462,9 +460,7 @@ def init_scene(p, mug_random=False):
     for _ in range(30):
         p.stepSimulation()
     
-    obstacles = [cabinet2_id, table_id, wall_id, wall_id_back, wall_id_front, wall_left_id, wall_right_id, wall_right_id2, fridge_id, drawer_id, bed_id, microwave_id, box_id, bottle_id, bowl_id, mug_id, trashbin_id, pan_id, spatula_id]
-
-    return mobot, collision_mapping
+    return mobot, mug_id, collision_mapping
 
 def draw_aabb(aabb_min, aabb_max, color=[1, 0, 0], line_width=2):
     """

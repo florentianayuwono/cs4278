@@ -11,9 +11,9 @@ p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
 p.setGravity(0, 0, -9.81)
 
 # Initialize the scene with the mobot and set up the mug in a fixed position
-mobot, obstacles = init_scene(p, mug_random=False)
+mobot, mug_id, obstacles = init_scene(p, mug_random=False)
 print(obstacles)
-drawer_position = [1.6, -0.35, 0]  # Target region for navigation
+drawer_position = [3.8, 0, 0]  # Target region for navigation
 
 # Parameters for controlling the robot
 forward = 0
@@ -83,27 +83,85 @@ def navigate_to_goal(mobot, path):
 
 def reach_and_grasp(mobot, mug_id):
     """
-    Plans and executes a motion to grasp the mug.
+    Plans and executes a motion to grasp the mug using inverse kinematics.
     """
-    # Target position for the mug
+    # Step 1: Get the mug's position
     mug_position = get_mug_pose(p, mug_id)
+    print(f"Target mug position: {mug_position}")
 
-    # Motion planning to reach the mug
-    print("Planning motion to reach the mug...")
-    motion_planning_test(p, mobot.robotId, mug_position)
+    # Step 2: Reposition robot closer to the mug if needed
+    robot_base_position, _, _ = get_robot_base_pose(p, mobot.robotId)
+    distance_to_mug = np.linalg.norm(np.array(robot_base_position) - np.array(mug_position))
+    print(f"Distance from robot base to mug: {distance_to_mug}")
 
-    # Move end-effector towards the mug for grasping
+    # Step 4: Calculate and apply inverse kinematics
+    joint_positions = p.calculateInverseKinematics(
+        bodyUniqueId=mobot.robotId,
+        endEffectorLinkIndex=18,
+        targetPosition=mug_position,
+    )
+
+    print("joint positions", joint_positions)
+    for joint_idx, joint_angle in enumerate(joint_positions):
+        p.setJointMotorControl2(
+            bodyIndex=mobot.robotId,
+            jointIndex=joint_idx,
+            controlMode=p.POSITION_CONTROL,
+            targetPosition=joint_angle,
+        )
+
+    time.sleep(1)
+
+    # Step 5: Validate proximity and grasp
+    ee_position, _, _ = get_robot_ee_pose(p, mobot.robotId)
+    distance_to_mug = np.linalg.norm(np.array(mug_position) - np.array(ee_position))
+    print(f"Distance to mug after repositioning: {distance_to_mug}")
+
+    if distance_to_mug > 0.2:
+        print("Error: Mug is too far to grasp!")
+        return False
+
     attach(mug_id, mobot.robotId, ee_link_index=18)
+    print("Mug successfully grasped!")
+    return True
+
 
 def place_in_drawer(mobot, drawer_position):
     """
-    Moves the robot's end-effector to place the mug in the drawer.
+    Plans and executes motion to place the mug in the drawer using inverse kinematics.
     """
-    print("Moving towards drawer to place the mug...")
-    motion_planning_test(p, mobot.robotId, drawer_position)
+    # Step 1: Calculate joint angles for placing the mug
+    joint_positions = p.calculateInverseKinematics(
+        bodyUniqueId=mobot.robotId,
+        endEffectorLinkIndex=18,  # Gripper link index
+        targetPosition=drawer_position,
+    )
 
-    # Detach the mug to place it down
-    detach(attached_constraint)
+    # Step 2: Apply the joint positions to move the arm
+    for joint_idx, joint_angle in enumerate(joint_positions):
+        p.setJointMotorControl2(
+            bodyIndex=mobot.robotId,
+            jointIndex=joint_idx,
+            controlMode=p.POSITION_CONTROL,
+            targetPosition=joint_angle,
+        )
+
+    # Wait for motion to complete
+    time.sleep(1)
+
+    # Step 3: Validate proximity and release
+    ee_position, _, _ = get_robot_ee_pose(p, mobot.robotId)
+    distance_to_drawer = np.linalg.norm(np.array(drawer_position) - np.array(ee_position))
+    print(f"Distance to drawer: {distance_to_drawer}")
+
+    if distance_to_drawer > 0.1:
+        print("Error: End-effector is too far from the drawer!")
+        return False
+
+    detach(mug_id)
+    print("Mug successfully placed in the drawer!")
+    return True
+
 
 # Main execution
 if __name__ == "__main__":
@@ -116,16 +174,20 @@ if __name__ == "__main__":
 
     print("Path found:", path)
 
-    path2 = find_path((1.81,-4), (3, 0), obstacles, 0.05, x_min, x_max, y_min, y_max)
+    path2 = find_path((1.81,-4), (3.4, 0), obstacles, 0.05, x_min, x_max, y_min, y_max)
 
     print("Path found:", path2)
+
+    # path3 = find_path((2,0), (3.8, 0.1), obstacles, 0.2, x_min, x_max, y_min, y_max)
+
+    # print("Path found:", path3)
 
     navi_flag = navigate_to_goal(mobot, path)
     navi_flag = navigate_to_goal(mobot, path2)
 
     # Step 2: Pick up the mug if it is in place
     if navi_flag and not grasp_flag:
-        reach_and_grasp(mobot)
+        reach_and_grasp(mobot, mug_id)
         grasp_flag = True
         print("Mug picked up!")
 
