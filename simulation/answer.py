@@ -11,7 +11,7 @@ p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
 p.setGravity(0, 0, -9.81)
 
 # Initialize the scene with the mobot and set up the mug in a fixed position
-mobot, mug_id, obstacles = init_scene(p, mug_random=False)
+mobot, mug_id, obstacles = init_scene(p, mug_random=True)
 print(obstacles)
 drawer_position = [3.8, 0, 0]  # Target region for navigation
 
