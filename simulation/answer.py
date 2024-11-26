@@ -10,10 +10,8 @@ p.connect(p.GUI)
 p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
 p.setGravity(0, 0, -9.81)
 
-# Initialize the scene with the mobot and set up the mug in a fixed position
+# Initialize the scene with the mobot and set up the mug in a fixed/random position
 mobot, mug_id, obstacles = init_scene(p, mug_random=True)
-print(obstacles)
-drawer_position = [3.8, 0, 0]  # Target region for navigation
 
 # Parameters for controlling the robot
 forward = 0
@@ -27,8 +25,6 @@ yaw = 0
 # Tracking variables
 total_driving_distance = 0
 previous_position, _, _ = get_robot_base_pose(p, mobot.robotId)
-navi_flag = False
-grasp_flag = False
 
 def navigate_to_goal(mobot, path):
     """
@@ -77,8 +73,10 @@ def navigate_to_goal(mobot, path):
             total_driving_distance += np.linalg.norm(np.array(current_position) - np.array(previous_position))
             previous_position = current_position
 
+            # Navigation goal condition: total_driving_distance <= 18
+            if current_position[0] > 1.6 and current_position[1] > -0.35:
+                print("Reached the goal region! Total driving distance: ", total_driving_distance)
 
-    print(f"Reached the goal region! Total driving distance: {total_driving_distance}")
     return True
 
 def align_with_mug(mobot, mug_id, max_steps=5000):
@@ -147,7 +145,6 @@ def align_with_mug(mobot, mug_id, max_steps=5000):
     
     print("Failed to align within the maximum steps.")
     return False
-
 
 def place_mug_in_drawer(mobot, drawer_position, constraint, max_steps=5000):
     """
@@ -219,37 +216,33 @@ def place_mug_in_drawer(mobot, drawer_position, constraint, max_steps=5000):
     print("Failed to align within the maximum steps.")
     return False
 
-
-
-
 # Main execution
 if __name__ == "__main__":
-    # Step 1: Navigate the robot along the path to the drawer position
-    # Define grid resolution and bounds
+    # Define environment variables
     grid_resolution = 0.3
     x_min, x_max = -5, 5
     y_min, y_max = -5, 5
-    path = find_path((-1,0), (1.81,-4), obstacles, 0.3, x_min, x_max, y_min, y_max)
+    mug_id = 21
+    drawer_position = [3.4, 0.2, 0.73]
 
-    print("Path found:", path)
+    # Find the optimal path from the robot to the drawer
+    path = find_path((-1,0), (1.81,-4), obstacles, 0.3, x_min, x_max, y_min, y_max)
+    print("Path to the bedroom found:", path)
 
     path2 = find_path((1.81,-4), (3.5, 0.5), obstacles, 0.05, x_min, x_max, y_min, y_max)
+    print("Path to the drawer found:", path2)
 
-    print("Path found:", path2)
-
-    # path3 = find_path((2,0), (3.8, 0.1), obstacles, 0.2, x_min, x_max, y_min, y_max)
-
-    # print("Path found:", path3)
-
-    navi_flag = navigate_to_goal(mobot, path)
-    navi_flag = navigate_to_goal(mobot, path2)
-
-    mug_id = 21  # Mug object ID
-    drawer_position = [3.4, 0.2, 0.73]  # Drawer position
-    
-    # Step 1: Align with the mug
-    if align_with_mug(mobot, mug_id):
-        constraint = attach(mug_id, mobot.robotId, ee_link_index=18)  # Attach mug
-        # Step 2: Move to the drawer and place the mug
-        if place_mug_in_drawer(mobot, drawer_position, constraint):
-            print("Mug successfully placed in the drawer!")
+    # Step 1: Attempt to move the robot from the start position to the goal position
+    if navigate_to_goal(mobot, path) and navigate_to_goal(mobot, path2):
+        # Step 2: Attempt to pick up the mug
+        if align_with_mug(mobot, mug_id):
+            constraint = attach(mug_id, mobot.robotId, ee_link_index=18)  # Grasp the mug
+            # Step 3: Attempt to place the mug in the drawer
+            if place_mug_in_drawer(mobot, drawer_position, constraint):
+                print("Mug successfully placed in the drawer!")
+            else:
+                print("Failed to place mug in the drawer.")
+        else:
+            print("Failed to pick up the mug.")
+    else:
+        print("Failed to navigate to the drawer position.")

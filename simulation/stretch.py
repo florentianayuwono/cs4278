@@ -13,7 +13,7 @@ sys.path.append('./')
 def init_scene(p, mug_random=False):
     root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),"../")
 
-    collision_mapping = {}
+    collision_mapping = {} # to store the obstacles positions
 
     ################ Plane Environment
     plane_id = p.loadURDF(os.path.join(root_dir,"resource/urdf/plane.urdf"), [0, 0, 0])
@@ -28,8 +28,7 @@ def init_scene(p, mug_random=False):
         p.stepSimulation()
 
 
-    ################
-    #### table initialization
+    ################ table initialization
     table_height = 0.8
     table_width = 1.10 * 2.0
     table_depth = 1.0
@@ -44,7 +43,7 @@ def init_scene(p, mug_random=False):
     p.changeVisualShape(table_id, -1, rgbaColor=table_color)
     collision_mapping["table"] = p.getAABB(table_id)
 
-    ################
+    ################ wall initialization
     wall_height = 2.2
     wall_width = table_width + 4.0
     wall_depth = 0.02
@@ -118,32 +117,7 @@ def init_scene(p, mug_random=False):
 
     urdf_dir = os.path.join(root_dir,"resource/urdf")
 
-    table_z = p.getAABB(table_id)[1][2]
-
-    # cabinet2_position = [-1.5, 0.25, table_z+ 1.5]
-    # cabinet2_scaling = 0.7
-    # cabinet2_orientation = p.getQuaternionFromEuler([0, 0, np.pi])
-    # cabinet2_id = p.loadURDF(fileName=os.path.join(urdf_dir,"obj_libs/cabinets/c2/mobility.urdf"),\
-    #                                 useFixedBase=True,
-    #                                 basePosition=cabinet2_position,\
-    #                                 baseOrientation=cabinet2_orientation,\
-    #                                 globalScaling=cabinet2_scaling)
-
-    # p.changeVisualShape(cabinet2_id,2,rgbaColor=[0.5,0.5,0.5,1])
-    # p.changeVisualShape(cabinet2_id,1,rgbaColor=[1,1,1,1])
-    # p.changeVisualShape(cabinet2_id,3,rgbaColor=[1,1,1,1])
-    # p.changeVisualShape(cabinet2_id,4,rgbaColor=[0.5,0.5,0.5,1])
-
-
-    # cabinet_center_x = 1.35 #+ (p.getAABB(table_id)[1][0] - p.getAABB(cabinet1_id)[1][0])/2.0
-    # cabinet_center_y = -1.25#cabinet_width/2.0
-    # cabinet_center_z = 1.4
-
-    # #cabinet1_position = (cabinet_center_x, -cabinet_center_y, cabinet_center_z)
-    # cabinet2_position = (cabinet_center_x,  cabinet_center_y, cabinet_center_z)
-    # #p.resetBasePositionAndOrientation(cabinet1_id, cabinet1_position, cabinet1_orientation)
-    # p.resetBasePositionAndOrientation(cabinet2_id, cabinet2_position, cabinet2_orientation)
-
+    ################ cabinet initialization
     # Cabinet dimensions (original size based on URDF)
     cabinet_height = 1  # Original height (scaled)
     cabinet_width = 1.5   # Original width (scaled)
@@ -190,17 +164,7 @@ def init_scene(p, mug_random=False):
 
     collision_mapping["cabinet2"] = p.getAABB(cabinet2_id)
     
-    ############################
-    #### fridge initialization
-    # fridge_position = [0.7, -3.22, 0.9]
-    # fridge_scaling = 1.0
-    # fridge_orientation = p.getQuaternionFromEuler([0, 0, 0])
-    # fridge_id = p.loadURDF(fileName=os.path.join(urdf_dir, "obj_libs/fridges/f1/mobility.urdf"), \
-    #                                 useFixedBase=True, \
-    #                                 basePosition=fridge_position, \
-    #                                 baseOrientation=fridge_orientation, \
-    #                                 globalScaling=fridge_scaling)
-
+    ################ fridge initialization
     # Fridge dimensions (original size based on URDF)
     fridge_height = 1.8  # Original height (scaled)
     fridge_width = 1   # Original width (scaled)
@@ -245,7 +209,7 @@ def init_scene(p, mug_random=False):
 
     collision_mapping["fridge"] = p.getAABB(fridge_id)
 
-    #######
+    ################ drawer initialization
     table_z = p.getAABB(table_id)[1][2]
     drawer_position = [3.84, 0.05,  0.42]
     drawer_scaling = 0.5
@@ -256,7 +220,7 @@ def init_scene(p, mug_random=False):
                                     globalScaling=drawer_scaling, \
                                     useFixedBase=True)
 
-    #### bed initialization
+    ################ bed initialization
     bed_height = 0.7#0.12 * 2.0
     bed_width = 1.8
     bed_depth = 2.2
@@ -271,7 +235,7 @@ def init_scene(p, mug_random=False):
     p.changeVisualShape(bed_id, -1, rgbaColor=bed_color)
     collision_mapping["bed"] = p.getAABB(bed_id)
     
-    #### microwave initialization
+    ################ microwave initialization
     table_z = p.getAABB(table_id)[1][2]
     microwave_position = [0.35, 0.72, table_z + 0.15]
     microwave_scaling = 0.4
@@ -290,8 +254,8 @@ def init_scene(p, mug_random=False):
     p.resetJointState(microwave_id, 1, np.pi/2.0, 0.0)
 
     collision_mapping["microwave"] = p.getAABB(microwave_id)
-    #####
 
+    ################ box initialization
     box_position = [2.25, -3.5 , 0.2]
     box_scaling = 0.4
     box_orientation = p.getQuaternionFromEuler([0, 0.0, np.pi / 2.0 + 0])
@@ -314,7 +278,7 @@ def init_scene(p, mug_random=False):
 
     collision_mapping["box"] = p.getAABB(box_id)
 
-    ############################
+    ################ bottle initialization
     bottle_position = [drawer_position[0]+0.1, drawer_position[1]+0.1, table_z+0.49]
     bottle_scaling = 0.2
     bottle_orientation = p.getQuaternionFromEuler([np.pi/2.0, 0.0, 0.0])
@@ -331,10 +295,8 @@ def init_scene(p, mug_random=False):
     p.changeDynamics(bottle_id, -1, spinningFriction=obj_friction_ceof)
 
     p.changeDynamics(bottle_id, -1, mass=0.02)
-    #p.changeDynamics(bottle_id, -1, linearDamping=20.0)
-    #p.changeDynamics(bottle_id, -1, angularDamping=20.0)
-    #p.changeDynamics(bottle_id, -1, contactStiffness=0.1, contactDamping=0.1)
 
+    ################ bowl initialization
     bowl_position = [0.4, -0.6, table_z + 0.15]
     bowl_scaling = 0.2
     bowl_orientation = p.getQuaternionFromEuler([.0, 0.0, 0.0])
@@ -355,10 +317,8 @@ def init_scene(p, mug_random=False):
     p.changeDynamics(bowl_id, -1, rollingFriction=obj_friction_ceof)
     p.changeDynamics(bowl_id, -1, spinningFriction=obj_friction_ceof)
     p.changeDynamics(bowl_id, -1, mass=0.2)
-    #p.changeDynamics(self.bowl_id, -1, linearDamping=20.0)
-    #p.changeDynamics(self.bowl_id, -1, angularDamping=20.0)
-    #p.changeDynamics(self.bowl_id, -1, contactStiffness=0.9, contactDamping=0.9)
 
+    ################ mug initialization
     mug_position = [0.25, -0.93, 1.53]
     mug_orientation = p.getQuaternionFromEuler([np.pi / 2.0, 0, np.pi - np.pi / 2.0])
     mug_scaling = 0.2
@@ -367,14 +327,14 @@ def init_scene(p, mug_random=False):
                                  globalScaling=mug_scaling,
                                  basePosition=mug_position,
                                  baseOrientation=mug_orientation)
-    # self.p.changeVisualShape(self.mug_id, -1, rgbaColor=[1.,1.,1.0,1])
+
     obj_friction_ceof = 4000.0
     p.changeDynamics(mug_id, -1, lateralFriction=obj_friction_ceof)
     p.changeDynamics(mug_id, -1, rollingFriction=obj_friction_ceof)
     p.changeDynamics(mug_id, -1, spinningFriction=obj_friction_ceof)
     p.changeDynamics(mug_id, -1, mass=0.01)
 
-
+    ################ trashbin initialization
     trashbin_position = [-1.1, -4.01, 0.48]
     trashbin_scaling = 1.0
     trashbin_orientation = p.getQuaternionFromEuler([np.pi / 2.0, 0.0, np.pi / 2.0])
@@ -386,17 +346,8 @@ def init_scene(p, mug_random=False):
     p.changeVisualShape(trashbin_id, -1, rgbaColor=[200 / 255., 179 / 255., 179 / 255., 1])
 
     collision_mapping["trashbin"] = p.getAABB(trashbin_id)
-
-    # Draw collision mapping
-    for obj_name, (aabb_min, aabb_max) in collision_mapping.items():
-        rounded_min = [math.floor(coord * 100) / 100 for coord in aabb_min]  # Round down
-        rounded_max = [math.ceil(coord * 100) / 100 for coord in aabb_max]    # Round up
-        collision_mapping[obj_name] = (tuple(rounded_min), tuple(rounded_max))
     
-    print(collision_mapping)
-    for item in collision_mapping.values():
-        draw_aabb(item[0], item[1])
-    
+    ################ pan initialization
     pan_position = [0.35, .2, table_z + 0.05]
     pan_scaling = 0.6
     pan_orientation = p.getQuaternionFromEuler([.0, 0.0, np.pi / 4.0])
@@ -409,6 +360,7 @@ def init_scene(p, mug_random=False):
     p.changeVisualShape(pan_id, 1, rgbaColor=[0.9, 0.9, 0.9, 1.0])
     p.changeDynamics(pan_id, -1, mass=0.001)
 
+    ################ spatula initialization
     spatula_position = np.copy(np.array(pan_position))
     spatula_position[1] -= 0.3
     spatula_position[0] += 0.25
@@ -424,7 +376,7 @@ def init_scene(p, mug_random=False):
     p.changeVisualShape(spatula_id, -1, rgbaColor=[0 / 255.0, 179 / 255., 179 / 255., 1])
     p.changeDynamics(spatula_id, -1, mass=0.01)
 
-
+    ################ mug initialization
     mug_position = [drawer_position[0]-0.15, drawer_position[1], 1.5]
     mug_orientation = p.getQuaternionFromEuler([np.pi/2.0, 0, np.pi + np.pi/2.0])
     if mug_random:
@@ -443,6 +395,16 @@ def init_scene(p, mug_random=False):
     p.changeDynamics(mug_id, -1, lateralFriction=obj_friction_ceof)
     p.changeDynamics(mug_id, -1, mass=0.01)
     # mug id: 21
+
+    # Round the position of obstacles to 2 digits
+    for obj_name, (aabb_min, aabb_max) in collision_mapping.items():
+        rounded_min = [math.floor(coord * 100) / 100 for coord in aabb_min]  # Round down
+        rounded_max = [math.ceil(coord * 100) / 100 for coord in aabb_max]    # Round up
+        collision_mapping[obj_name] = (tuple(rounded_min), tuple(rounded_max)) 
+
+    # Draw the bounding box of obstacles
+    for item in collision_mapping.values():
+        draw_aabb(item[0], item[1])
     
     for _ in range(20):
         p.stepSimulation()
@@ -533,7 +495,7 @@ def gripper_control(mobot, p, cmd=0):
     
 class Robot:
     def __init__(self,pybullet_api,start_pos=[0.4,0.3,0.4],urdf_file=None,resource_dir=None,project_root_dir=None):
-        self.p = p#pybullet_api
+        self.p = p #pybullet_api
 
         self.gripperMaxForce = 1000.0
         self.armMaxForce = 200.0
