@@ -81,86 +81,145 @@ def navigate_to_goal(mobot, path):
     print(f"Reached the goal region! Total driving distance: {total_driving_distance}")
     return True
 
-def reach_and_grasp(mobot, mug_id):
+def align_with_mug(mobot, mug_id, max_steps=5000):
     """
-    Plans and executes a motion to grasp the mug using inverse kinematics.
+    Align the robot and its end-effector with the mug using base and arm controls.
+    The robot considers both base and end-effector orientations while turning.
     """
-    # Step 1: Get the mug's position
-    mug_position = get_mug_pose(p, mug_id)
-    print(f"Target mug position: {mug_position}")
+    for step in range(max_steps):
+        # Get current positions and orientations
+        base_position, _, base_orientation = get_robot_base_pose(p, mobot.robotId)
+        ee_position, ee_orientation, _ = get_robot_ee_pose(p, mobot.robotId)
+        mug_position = get_mug_pose(p, mug_id)
+        
+        # Calculate distances
+        distance_to_mug = np.linalg.norm(np.array(base_position[:2]) - np.array(mug_position[:2]))
+        ee_to_mug_distance = np.linalg.norm(np.array(ee_position) - np.array(mug_position))
+        
+        print(f"Step {step}: Base to Mug Distance: {distance_to_mug}, EE to Mug Distance: {ee_to_mug_distance}")
+        
+        # Stop if the end-effector is close enough
+        if ee_to_mug_distance < 0.2:
+            print("Aligned with the mug!")
+            return True
+        
+        # Calculate direction vector from base to mug
+        direction_to_mug = np.array(mug_position[:2]) - np.array(base_position[:2])
+        angle_to_mug = np.arctan2(direction_to_mug[1], direction_to_mug[0])  # Angle to the mug
+        base_yaw = base_orientation[2]  # Current yaw of the robot
+        
+        # Calculate yaw difference and normalize to [-π, π]
+        yaw_diff_base = angle_to_mug - base_yaw
+        yaw_diff_base = (yaw_diff_base + np.pi) % (2 * np.pi) - np.pi
+        
+        # Incorporate EE orientation
+        ee_yaw = ee_orientation[2]  # Yaw of the end-effector
+        yaw_diff_ee = angle_to_mug - ee_yaw
+        yaw_diff_ee = (yaw_diff_ee + np.pi) % (2 * np.pi) - np.pi
+        
+        # Determine whether to prioritize base or EE adjustments
+        if abs(yaw_diff_base) > 0.1:
+            turn = 1 if yaw_diff_base > 0 else -1
+        if abs(yaw_diff_ee) > 0.1:
+            turn = 1 if yaw_diff_ee > 0 else -1
+        else:
+            turn = 0
+        
+        # Determine forward or backward movement
+        if abs(yaw_diff_base) < 0.1 and distance_to_mug > 0.5:
+            forward = 0.5  # Move forward if aligned and far
+        elif distance_to_mug < 0.3:
+            forward = -0.2  # Move backward for fine-tuning
+        else:
+            forward = 0.0
+        
+        # Apply base control
+        base_control(mobot, p, forward=forward, turn=turn)
+        
+        # Adjust arm positioning
+        arm_up = 1 if mug_position[2] > ee_position[2] else -1
+        arm_stretch = 1 if ee_to_mug_distance > 0.3 else -1
+        arm_roll = 1 if yaw_diff_ee > 0.1 else (-1 if yaw_diff_ee < -0.1 else 0)
+        arm_control(mobot, p, up=arm_up, stretch=arm_stretch, roll=arm_roll, yaw=0)
+        
+        # Pause for control updates
+        time.sleep(1. / 240.)
+    
+    print("Failed to align within the maximum steps.")
+    return False
 
-    # Step 2: Reposition robot closer to the mug if needed
-    robot_base_position, _, _ = get_robot_base_pose(p, mobot.robotId)
-    distance_to_mug = np.linalg.norm(np.array(robot_base_position) - np.array(mug_position))
-    print(f"Distance from robot base to mug: {distance_to_mug}")
 
-    # Step 4: Calculate and apply inverse kinematics
-    joint_positions = p.calculateInverseKinematics(
-        bodyUniqueId=mobot.robotId,
-        endEffectorLinkIndex=18,
-        targetPosition=mug_position,
-    )
-
-    print("joint positions", joint_positions)
-    for joint_idx, joint_angle in enumerate(joint_positions):
-        p.setJointMotorControl2(
-            bodyIndex=mobot.robotId,
-            jointIndex=joint_idx,
-            controlMode=p.POSITION_CONTROL,
-            targetPosition=joint_angle,
-        )
-
-    time.sleep(1)
-
-    # Step 5: Validate proximity and grasp
-    ee_position, _, _ = get_robot_ee_pose(p, mobot.robotId)
-    distance_to_mug = np.linalg.norm(np.array(mug_position) - np.array(ee_position))
-    print(f"Distance to mug after repositioning: {distance_to_mug}")
-
-    if distance_to_mug > 0.2:
-        print("Error: Mug is too far to grasp!")
-        return False
-
-    attach(mug_id, mobot.robotId, ee_link_index=18)
-    print("Mug successfully grasped!")
-    return True
-
-
-def place_in_drawer(mobot, drawer_position):
+def place_mug_in_drawer(mobot, drawer_position, constraint, max_steps=5000):
     """
-    Plans and executes motion to place the mug in the drawer using inverse kinematics.
+    Align the robot and its end-effector with the drawer using base and arm controls.
+    The robot considers both base and end-effector orientations while turning and moving.
     """
-    # Step 1: Calculate joint angles for placing the mug
-    joint_positions = p.calculateInverseKinematics(
-        bodyUniqueId=mobot.robotId,
-        endEffectorLinkIndex=18,  # Gripper link index
-        targetPosition=drawer_position,
-    )
+    for step in range(max_steps):
+        # Get current positions and orientations
+        base_position, _, base_orientation = get_robot_base_pose(p, mobot.robotId)
+        ee_position, ee_orientation, _ = get_robot_ee_pose(p, mobot.robotId)
+        
+        # Calculate distances
+        distance_to_drawer = np.linalg.norm(np.array(base_position[:2]) - np.array(drawer_position[:2]))
+        ee_to_drawer_distance = np.linalg.norm(np.array(ee_position) - np.array(drawer_position))
+        
+        print(f"Step {step}: Base to Drawer Distance: {distance_to_drawer}, EE to Drawer Distance: {ee_to_drawer_distance}")
+        
+        # Stop if the end-effector is close enough
+        mug_position = get_mug_pose(p)  # Get the current mug position
+        
+        # Check if the mug is already in the drawer
+        if (3.3 < mug_position[0] < 3.5 and
+            -0.17 < mug_position[1] < 0.25 and
+            0.71 < mug_position[2] < 0.75):
+            detach(constraint)
+            print("Mug is in the drawer!")
+            return True  # Success condition
+        
+        # Calculate direction vector from base to drawer
+        direction_to_drawer = np.array(drawer_position[:2]) - np.array(base_position[:2])
+        angle_to_drawer = np.arctan2(direction_to_drawer[1], direction_to_drawer[0])  # Angle to the drawer
+        base_yaw = base_orientation[2]  # Current yaw of the robot
+        
+        # Calculate yaw difference and normalize to [-π, π]
+        yaw_diff_base = angle_to_drawer - base_yaw
+        yaw_diff_base = (yaw_diff_base + np.pi) % (2 * np.pi) - np.pi
+        
+        # Incorporate EE orientation
+        ee_yaw = ee_orientation[2]  # Yaw of the end-effector
+        yaw_diff_ee = angle_to_drawer - ee_yaw
+        yaw_diff_ee = (yaw_diff_ee + np.pi) % (2 * np.pi) - np.pi
+        
+        # Determine whether to prioritize base or EE adjustments
+        if abs(yaw_diff_base) > 0.1 or abs(yaw_diff_ee) > 0.1:
+            turn = 1 if yaw_diff_base > 0 else -1
+        else:
+            turn = 0
+        
+        # Determine forward or backward movement
+        if abs(yaw_diff_base) < 0.1 and distance_to_drawer > 0.5:
+            forward = 0.5  # Move forward if aligned and far
+        elif distance_to_drawer < 0.3:
+            forward = -0.2  # Move backward for fine-tuning
+        else:
+            forward = 0.0
+        
+        # Apply base control
+        base_control(mobot, p, forward=forward, turn=turn)
+        
+        # Adjust arm positioning
+        arm_up = 1 if drawer_position[2] > ee_position[2] else -1
+        arm_stretch = 1 if ee_to_drawer_distance > 0.3 else -1
+        arm_roll = 1 if yaw_diff_ee > 0.1 else (-1 if yaw_diff_ee < -0.1 else 0)
+        arm_control(mobot, p, up=arm_up, stretch=arm_stretch, roll=arm_roll, yaw=0)
+        
+        # Pause for control updates
+        time.sleep(1. / 240.)
+    
+    print("Failed to align within the maximum steps.")
+    return False
 
-    # Step 2: Apply the joint positions to move the arm
-    for joint_idx, joint_angle in enumerate(joint_positions):
-        p.setJointMotorControl2(
-            bodyIndex=mobot.robotId,
-            jointIndex=joint_idx,
-            controlMode=p.POSITION_CONTROL,
-            targetPosition=joint_angle,
-        )
 
-    # Wait for motion to complete
-    time.sleep(1)
-
-    # Step 3: Validate proximity and release
-    ee_position, _, _ = get_robot_ee_pose(p, mobot.robotId)
-    distance_to_drawer = np.linalg.norm(np.array(drawer_position) - np.array(ee_position))
-    print(f"Distance to drawer: {distance_to_drawer}")
-
-    if distance_to_drawer > 0.1:
-        print("Error: End-effector is too far from the drawer!")
-        return False
-
-    detach(mug_id)
-    print("Mug successfully placed in the drawer!")
-    return True
 
 
 # Main execution
@@ -174,7 +233,7 @@ if __name__ == "__main__":
 
     print("Path found:", path)
 
-    path2 = find_path((1.81,-4), (3.4, 0), obstacles, 0.05, x_min, x_max, y_min, y_max)
+    path2 = find_path((1.81,-4), (3.5, 0.5), obstacles, 0.05, x_min, x_max, y_min, y_max)
 
     print("Path found:", path2)
 
@@ -185,13 +244,12 @@ if __name__ == "__main__":
     navi_flag = navigate_to_goal(mobot, path)
     navi_flag = navigate_to_goal(mobot, path2)
 
-    # Step 2: Pick up the mug if it is in place
-    if navi_flag and not grasp_flag:
-        reach_and_grasp(mobot, mug_id)
-        grasp_flag = True
-        print("Mug picked up!")
-
-    # Step 3: Place the mug in the drawer
-    if grasp_flag:
-        place_in_drawer(mobot, drawer_position)
-        print("Mug placed in the drawer!")
+    mug_id = 21  # Mug object ID
+    drawer_position = [3.4, 0.2, 0.73]  # Drawer position
+    
+    # Step 1: Align with the mug
+    if align_with_mug(mobot, mug_id):
+        constraint = attach(mug_id, mobot.robotId, ee_link_index=18)  # Attach mug
+        # Step 2: Move to the drawer and place the mug
+        if place_mug_in_drawer(mobot, drawer_position, constraint):
+            print("Mug successfully placed in the drawer!")
