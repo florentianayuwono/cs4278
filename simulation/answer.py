@@ -85,7 +85,6 @@ def align_with_mug(mobot, mug_id, max_steps=5000):
     The robot considers both base and end-effector orientations while turning.
     """
     for step in range(max_steps):
-        # Get current positions and orientations
         base_position, _, base_orientation = get_robot_base_pose(p, mobot.robotId)
         ee_position, ee_orientation, _ = get_robot_ee_pose(p, mobot.robotId)
         mug_position = get_mug_pose(p, mug_id)
@@ -101,49 +100,39 @@ def align_with_mug(mobot, mug_id, max_steps=5000):
             print("Aligned with the mug!")
             return True
         
-        # Calculate direction vector from base to mug
-        direction_to_mug = np.array(mug_position[:2]) - np.array(base_position[:2])
-        angle_to_mug = np.arctan2(direction_to_mug[1], direction_to_mug[0])  # Angle to the mug
-        base_yaw = base_orientation[2]  # Current yaw of the robot
+        # Define End Effector Link Index as 18 
+        EE_LINK_INDEX = 18
+
+        # Obtain Joint Poses by Inverse Kinematics
+        jointPoses = p.calculateInverseKinematics(mobot.robotId, EE_LINK_INDEX, mug_position)
+
+        # Get Number of Joints
+        numJoints = p.getNumJoints(mobot.robotId)
+
+        # Find joints that are not labelled as JOINT_FIXED
+        joint_indices = []
+        for j in range(numJoints):
+            joint = p.getJointInfo(mobot.robotId, j)
+            if joint[2] == p.JOINT_FIXED:
+                print("Fixed Joint: ", joint)
+                continue
+            joint_indices.append(joint[0])
         
-        # Calculate yaw difference and normalize to [-π, π]
-        yaw_diff_base = angle_to_mug - base_yaw
-        yaw_diff_base = (yaw_diff_base + np.pi) % (2 * np.pi) - np.pi
-        
-        # Incorporate EE orientation
-        ee_yaw = ee_orientation[2]  # Yaw of the end-effector
-        yaw_diff_ee = angle_to_mug - ee_yaw
-        yaw_diff_ee = (yaw_diff_ee + np.pi) % (2 * np.pi) - np.pi
-        
-        # Determine whether to prioritize base or EE adjustments
-        if abs(yaw_diff_base) > 0.1:
-            turn = 1 if yaw_diff_base > 0 else -1
-        if abs(yaw_diff_ee) > 0.1:
-            turn = 1 if yaw_diff_ee > 0 else -1
-        else:
-            turn = 0
-        
-        # Determine forward or backward movement
-        if abs(yaw_diff_base) < 0.1 and distance_to_mug > 0.5:
-            forward = 0.5  # Move forward if aligned and far
-        elif distance_to_mug < 0.3:
-            forward = -0.2  # Move backward for fine-tuning
-        else:
-            forward = 0.0
-        
-        # Apply base control
-        base_control(mobot, p, forward=forward, turn=turn)
-        
-        # Adjust arm positioning
-        arm_up = 1 if mug_position[2] > ee_position[2] else -1
-        arm_stretch = 1 if ee_to_mug_distance > 0.3 else -1
-        arm_roll = 1 if yaw_diff_ee > 0.1 else (-1 if yaw_diff_ee < -0.1 else 0)
-        arm_control(mobot, p, up=arm_up, stretch=arm_stretch, roll=arm_roll, yaw=0)
-        
-        # Pause for control updates
+        print("New joint indices:", joint_indices)
+        print(jointPoses)
+
+        # Update Joint movements with the joint poses computed from inv. kinematics
+        for i in range(len(joint_indices)):
+            p.setJointMotorControl2(bodyIndex=mobot.robotId,
+                                    jointIndex=joint_indices[i],
+                                    controlMode=p.POSITION_CONTROL,
+                                    targetPosition=jointPoses[i],
+                                    positionGain=0.01,
+                                    velocityGain=0.1)
+
+        # Give it some time to sleep for the motor control to take effect
         time.sleep(1. / 240.)
-    
-    print("Failed to align within the maximum steps.")
+
     return False
 
 def place_mug_in_drawer(mobot, drawer_position, constraint, max_steps=5000):
@@ -173,47 +162,39 @@ def place_mug_in_drawer(mobot, drawer_position, constraint, max_steps=5000):
             print("Mug is in the drawer!")
             return True  # Success condition
         
-        # Calculate direction vector from base to drawer
-        direction_to_drawer = np.array(drawer_position[:2]) - np.array(base_position[:2])
-        angle_to_drawer = np.arctan2(direction_to_drawer[1], direction_to_drawer[0])  # Angle to the drawer
-        base_yaw = base_orientation[2]  # Current yaw of the robot
+        # Define End Effector Link Index as 18 
+        EE_LINK_INDEX = 18
+
+        # Obtain Joint Poses by Inverse Kinematics
+        jointPoses = p.calculateInverseKinematics(mobot.robotId, EE_LINK_INDEX, drawer_position)
+
+        # Get Number of Joints
+        numJoints = p.getNumJoints(mobot.robotId)
+
+        # Find joints that are not labelled as JOINT_FIXED
+        joint_indices = []
+        for j in range(numJoints):
+            joint = p.getJointInfo(mobot.robotId, j)
+            if joint[2] == p.JOINT_FIXED:
+                print("Fixed Joint: ", joint)
+                continue
+            joint_indices.append(joint[0])
         
-        # Calculate yaw difference and normalize to [-π, π]
-        yaw_diff_base = angle_to_drawer - base_yaw
-        yaw_diff_base = (yaw_diff_base + np.pi) % (2 * np.pi) - np.pi
-        
-        # Incorporate EE orientation
-        ee_yaw = ee_orientation[2]  # Yaw of the end-effector
-        yaw_diff_ee = angle_to_drawer - ee_yaw
-        yaw_diff_ee = (yaw_diff_ee + np.pi) % (2 * np.pi) - np.pi
-        
-        # Determine whether to prioritize base or EE adjustments
-        if abs(yaw_diff_base) > 0.1 or abs(yaw_diff_ee) > 0.1:
-            turn = 1 if yaw_diff_base > 0 else -1
-        else:
-            turn = 0
-        
-        # Determine forward or backward movement
-        if abs(yaw_diff_base) < 0.1 and distance_to_drawer > 0.5:
-            forward = 0.5  # Move forward if aligned and far
-        elif distance_to_drawer < 0.3:
-            forward = -0.2  # Move backward for fine-tuning
-        else:
-            forward = 0.0
-        
-        # Apply base control
-        base_control(mobot, p, forward=forward, turn=turn)
-        
-        # Adjust arm positioning
-        arm_up = 1 if drawer_position[2] > ee_position[2] else -1
-        arm_stretch = 1 if ee_to_drawer_distance > 0.3 else -1
-        arm_roll = 1 if yaw_diff_ee > 0.1 else (-1 if yaw_diff_ee < -0.1 else 0)
-        arm_control(mobot, p, up=arm_up, stretch=arm_stretch, roll=arm_roll, yaw=0)
-        
-        # Pause for control updates
+        print("New joint indices:", joint_indices)
+        print(jointPoses)
+
+        # Update Joint movements with the joint poses computed from inv. kinematics
+        for i in range(len(joint_indices)):
+            p.setJointMotorControl2(bodyIndex=mobot.robotId,
+                                    jointIndex=joint_indices[i],
+                                    controlMode=p.POSITION_CONTROL,
+                                    targetPosition=jointPoses[i],
+                                    positionGain=0.03,
+                                    velocityGain=0.5)
+
+        # Give it some time to sleep for the motor control to take effect
         time.sleep(1. / 240.)
-    
-    print("Failed to align within the maximum steps.")
+
     return False
 
 # Main execution
@@ -246,3 +227,7 @@ if __name__ == "__main__":
             print("Failed to pick up the mug.")
     else:
         print("Failed to navigate to the drawer position.")
+    
+    # TODO: Remove this before submission. 
+    #       Just so that it doesnt stop directly for video recording
+    time.sleep(300)
