@@ -296,6 +296,8 @@ def init_scene(p, mug_random=False):
 
     p.changeDynamics(bottle_id, -1, mass=0.02)
 
+    collision_mapping["bottle"] = p.getAABB(bottle_id)
+
     ################ bowl initialization
     bowl_position = [0.4, -0.6, table_z + 0.15]
     bowl_scaling = 0.2
