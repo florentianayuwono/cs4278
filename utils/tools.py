@@ -112,4 +112,4 @@ def motion_planning_test(p, robot_id, target_position):
     current_ee_position, _, _ = get_robot_ee_pose(p, robot_id)
     if np.linalg.norm(np.array(target_position) - np.array(current_ee_position)) < 0.1:
         print("The end-effector is already at the target position!")
-        
+        return True
