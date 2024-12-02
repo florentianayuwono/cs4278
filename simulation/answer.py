@@ -33,6 +33,8 @@ def navigate_to_goal(mobot, path):
     """
     global forward, turn, total_driving_distance, previous_position, previous_orientation
 
+    reached_goal_flag = False
+
     for target_position in path:
         target_position = [target_position[0], target_position[1], 0]
         while True:
@@ -74,8 +76,9 @@ def navigate_to_goal(mobot, path):
             previous_position = current_position
 
             # Navigation goal condition: total_driving_distance <= 18
-            if current_position[0] > 1.6 and current_position[1] > -0.35:
+            if not reached_goal_flag and current_position[0] > 1.6 and current_position[1] > -0.35:
                 print("Reached the goal region! Total driving distance: ", total_driving_distance)
+                reached_goal_flag = True
 
     return True
 
